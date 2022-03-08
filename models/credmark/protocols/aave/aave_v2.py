@@ -80,6 +80,7 @@ class AaveV2GetAssets(credmark.model.Model):
 
         asset_output = {}
         for asset in aave_assets:
+            print("ASset ", asset)
 
             getReservesData = contract.functions.getReserveData(asset).call()
             atoken_asset = getReservesData[7]
@@ -135,4 +136,20 @@ class AaveV2GetTokenAsset(credmark.model.Model):
         output = {'result': {'token': symbol, 'totalStableDebt': totalStableDebt,
                              'totalVariableDebt': totalVariableDebt, 'totalDebt': totalDebt}}
 
+        return output
+
+
+
+@credmark.model.describe(slug="aave-token-asset-historical",
+                         version="1.0",
+                         display_name="Aave V2 token liquidity",
+                         description="Aave V2 token liquidity at a given block number",
+                         input=Token)
+class AaveV2GetTokenAssetHistorical(credmark.model.Model):
+    def run(self, input: Address) -> dict:
+        output = {}
+        historical_data = self.context.historical.run_model_historical(
+            'aave-token-asset', model_input={'address': input.token}, window='5 days', interval='1 hour')
+
+        output['historical_data'] = historical_data
         return output
