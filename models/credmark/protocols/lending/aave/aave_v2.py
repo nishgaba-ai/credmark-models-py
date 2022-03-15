@@ -126,3 +126,66 @@ class AaveV2GetTokenAssetHistorical(credmark.model.Model):
     def run(self, input: Token) -> BlockSeries:
         return self.context.historical.run_model_historical(
             'aave.overall-asset-position', model_input=input, window='5 days', interval='1 day')
+
+
+
+@ credmark.model.describe(slug="aave.LCR",
+                          version="1.0",
+                          display_name="Aave V2 LCR",
+                          description="Current LCR value for Aave V2",
+                          input=None,
+                          output=None)
+class AaveV2GetLCR(credmark.model.Model):
+    def run(self, input) -> IterableListGenericDTO[AaveDebtInfo]:
+        contract = Contract(
+            # lending pool address
+            address=Address("0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9").checksum,
+            abi=AAVE_V2_TOKEN_CONTRACT_ABI
+        )
+        aave_assets = contract.functions.getReservesList().call()
+
+        contract = Contract(
+            # lending pool address
+            address=Address("0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9").checksum,
+            abi=AAVE_V2_TOKEN_CONTRACT_ABI
+        )
+        TotalAssets = 0
+        TotalLiabilities = 0
+        MARKET_CAP = 0
+        for asset in aave_assets:
+
+
+            getReservesData = contract.functions.getReserveData(asset).call()
+            MARKET_CAP += getReservesData[4] / pow(10,18)
+            stableToken = Token(
+                address=getReservesData[8], abi=ERC_20_TOKEN_CONTRACT_ABI)
+            totalStableDebt = stableToken.total_supply()
+
+            totalVariableDebt = Token(
+                address=getReservesData[9], abi=ERC_20_TOKEN_CONTRACT_ABI).total_supply()
+
+            totalDebt    = totalStableDebt + totalVariableDebt
+            # print("Assets : ", totalDebt , stableToken.decimals ,totalDebt / pow(10, stableToken.decimals ), stableToken.symbol )
+            TotalAssets += totalDebt / pow(10, stableToken.decimals )
+
+            aToken = Token( 
+                address=getReservesData[7],
+                abi=ERC_20_TOKEN_CONTRACT_ABI)
+
+            # print("Supply ", aToken.total_supply(),  aToken.decimals , aToken.total_supply() / pow(10, aToken.decimals ), aToken.symbol  )    
+            TotalLiabilities += aToken.total_supply() / pow(10, aToken.decimals )
+
+
+        print("TotalAssets ", TotalAssets)
+        print("TotalLiabilities ", TotalLiabilities)
+        print("MARKET_CAP : ", MARKET_CAP)
+        
+
+        LCR = (MARKET_CAP * 0.7 ) / ( TotalLiabilities* 0.2 + TotalAssets* 0.1 )
+
+        print("LCR : ", LCR)
+
+
+
+
+
